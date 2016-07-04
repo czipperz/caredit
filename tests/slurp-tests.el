@@ -2,18 +2,20 @@
 
 ;; Copyright (C) 2016 Chris Gregory czipperz@gmail.com
 
-;; This program is free software: you can redistribute it and/or modify
+;; This file is part of Caredit.
+;;
+;; Caredit is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
 ;; the Free Software Foundation, either version 3 of the License, or
 ;; (at your option) any later version.
 ;;
-;; This program is distributed in the hope that it will be useful,
+;; Caredit is distributed in the hope that it will be useful,
 ;; but WITHOUT ANY WARRANTY; without even the implied warranty of
 ;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ;; GNU General Public License for more details.
 ;;
 ;; You should have received a copy of the GNU General Public License
-;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+;; along with Caredit.  If not, see <http://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 ;; caredit-open-angle
@@ -49,7 +51,7 @@
   (should-bob-match "f(g(a, b, c, d));$"))
 
 (deftest caredit--slurp-forward-statement--slurp-1
-  "{ a; b; } c; d, e;"
+    "{ a; b; } c; d, e;"
   ;; Not in a block, should error
   (should-error (caredit--slurp-forward-statement))
 
@@ -67,7 +69,7 @@
   (should-error (caredit--slurp-forward-statement)))
 
 (deftest caredit--slurp-forward-statement--slurp-block
-  "void f() {
+    "void f() {
   {
     a;
   }
@@ -93,7 +95,7 @@
 }$")))
 
 (deftest caredit--slurp-forward-string--slurp-1
-  "\"baba\" asdf"
+    "\"baba\" asdf"
   (goto-char (point-max))
   (should-error (caredit--slurp-forward-string))
 
