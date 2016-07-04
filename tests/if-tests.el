@@ -158,5 +158,13 @@
 
   (should-error (caredit--beginning-of-balanced-statement)))
 
+(deftest caredit--beginning-of-balanced-statement--if-3
+    "if (1) 2; else if (3) { do { 4; } while (0); } else 5;\n"
+  (goto-char (point-max))
+  (caredit--beginning-of-balanced-statement)
+  (should (bobp))
+
+  (should-error (caredit--beginning-of-balanced-statement)))
+
 (provide 'if-tests)
 ;;; if-tests.el ends here

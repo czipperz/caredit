@@ -95,7 +95,16 @@
   (caredit--end-of-balanced-statement)
   (should (eolp))
 
-  (should-error (caredit--end-of-balanced-statement)))
+  (should-error (caredit--end-of-balanced-statement))
+
+  (goto-char 8)
+  (should (looking-at-p "; while (0); d; e;$"))
+
+  (caredit--end-of-balanced-statement)
+  (should (looking-at-p " while (0); d; e;$"))
+
+  (caredit--end-of-balanced-statement)
+  (should (looking-at-p " d; e;$")))
 
 (provide 'do-while-tests)
 ;;; do-while-tests.el ends here

@@ -61,16 +61,6 @@ SHOULD-FORMAT is t."
              message)
          (format "Assertion failed: %s" exp)))))
 
-(defmacro caredit--did-point-move (&rest body)
-  "Evaluate BODY, return t if point is not equal to it was before that execution.
-
-The point is stored in a `gensym'd value, so not accessible in BODY."
-  (declare (indent 0))
-  (let ((old-point (cl-gensym)))
-    `(let ((,old-point (point)))
-       ,@body
-       (/= ,old-point (point)))))
-
 (defmacro caredit--does-point-move (&rest body)
   "Evaluate BODY, return t if point is not equal to it was before that execution.  Saves excursion.
 
@@ -81,6 +71,13 @@ The point is stored in a `gensym'd value, so not accessible in BODY."
        (let ((,old-point (point)))
          ,@body
          (/= ,old-point (point))))))
+
+(defmacro caredit--where-does-point-move (&rest body)
+  "Evaluate BODY and return the resulting point, saving excursion."
+  (declare (indent 0))
+  `(save-excursion
+     ,@body
+     (point)))
 
 (defmacro caredit--error-save-excursion (&rest body)
   "Evaluate BODY, restoring the point if an error occured (then rethrowing).
@@ -178,7 +175,9 @@ Check while (...);"
               ))))))
 
 (defun caredit--fix-do-while-nobrace-beginning ()
-  "do a;| while (...);  =>  |do a; while (...);"
+  "do a;| while (...);  =>  |do a; while (...);
+
+Return t if moved, nil otherwise."
   (ignore-errors
     (caredit--error-save-excursion
       (when ;; check | while (...);
@@ -193,7 +192,8 @@ Check while (...);"
           (progn
             (forward-char 2)
             (caredit--assert (caredit--whitespace-p (char-after))
-                             "")))))))
+                             "")))
+        t))))
 
 (defun caredit--fix-do-while-nobrace-end ()
   "do a;| while (...);  =>  do a; while (...);|"
@@ -215,6 +215,44 @@ Check while (...);"
                                ""))))
         (forward-list)
         (forward-char)))))
+
+(defun caredit--move-backward-over-if/else-if ()
+  "Move backwards before an if (and then possibly and else).
+
+else if ()|  =>  |else if ()
+if ()|  =>  |if ()"
+  (ignore-errors
+    (caredit--error-save-excursion
+      (caredit--backward-over-whitespace)
+      (caredit--assert (= ?\) (char-before)))
+      (backward-list)
+      (caredit--assert (= ?\( (char-after)))
+      (caredit--backward-over-whitespace)
+      (caredit--assert (= ?f (char-before)))
+      (backward-char)
+      (caredit--assert (= ?i (char-before)))
+      (backward-char)
+      (caredit--assert (or (caredit--whitespace-p (char-before))
+                           (= ?/ (char-before))
+                           (member (char-before) caredit--open-chars)
+                           (member (char-before) caredit--close-chars)))
+      (ignore-errors
+        (caredit--error-save-excursion
+          (caredit--backward-over-whitespace)
+          (caredit--assert (= ?e (char-before)))
+          (backward-char)
+          (caredit--assert (= ?s (char-before)))
+          (backward-char)
+          (caredit--assert (= ?l (char-before)))
+          (backward-char)
+          (caredit--assert (= ?e (char-before)))
+          (backward-char)
+          (caredit--assert (or (caredit--whitespace-p (char-before))
+                               (= ?/ (char-before))
+                               (member (char-before)
+                                       caredit--open-chars)
+                               (member (char-before)
+                                       caredit--close-chars))))))))
 
 (defun caredit--beginning-of-balanced-statement ()
   "Move backward to the beginning of one balanced statements.
@@ -242,6 +280,10 @@ do a; while (0); d;|  =>  do a; while (0); |d;
                (caredit--assert (< (point) old-point)
                                 "No more balanced statements.")
                (throw 'done (point)))
+              ((or (caredit--in-comment-p)
+                   (caredit--in-char-p)
+                   (caredit--in-string-p))
+               (backward-char))
               ((= (char-before) ?\;)
                ;; properly detect do a;| while (...);
                ;; (go to |do a;.  Without this do a; |while)
@@ -260,6 +302,7 @@ do a; while (0); d;|  =>  do a; while (0); |d;
                  (backward-word)
                  ;; |do {} while ();
                  )
+               (caredit--move-backward-over-if/else-if)
                (when (caredit--does-point-move
                        (caredit--forward-over-else))
                  ;; |else
@@ -274,8 +317,6 @@ do a; while (0); d;|  =>  do a; while (0); |d;
                (caredit--assert (< (point) old-point)
                                 "No more balanced statements.")
                (throw 'done (point)))
-              ;; ((caredit--whitespace-p (char-before))
-              ;;  (when (caredit--does-point-move)))
               (t
                (backward-char)))))))
 
@@ -350,14 +391,28 @@ c; |{ a; b; } d;  =>  c; { a; b; }| d;"
         (while t
           (cond ((or (eobp) (= (char-after) ?\}))
                  (caredit--backward-over-whitespace)
-                 (if (<= (point) old-point)
-                     (error "No more balanced statements.")
-                   (throw 'done (point))))
+                 (caredit--assert (> (point) old-point)
+                                  "No more balanced statements.")
+                 (throw 'done (point)))
+                ((or (caredit--in-comment-p)
+                     (caredit--in-char-p)
+                     (caredit--in-string-p))
+                 (forward-char))
                 ((= (char-after) ?\;)
                  (forward-char)
                  (if start-at-if
                      (while (caredit--fix-else-end)))
-                 (caredit--fix-do-while-nobrace-end)
+                 ;; handle do ;| while ();
+                 ;; do |a; while ();  =>  do a;| while ();
+                 ;; do a;| while ();  =>  do a; while ();|
+                 ;; d|o a; while ();  =>  do a; while ();|
+                 ;; do a; w|hile ();  =>  do a; while ();|
+                 (if (save-excursion
+                       (when (caredit--fix-do-while-nobrace-beginning)
+                         (forward-char 2)
+                         (caredit--forward-over-whitespace)
+                         (> (point) old-point)))
+                     (caredit--fix-do-while-nobrace-end))
                  (if (caredit--internal-at-do-while)
                      (caredit--end-of-balanced-statement))
                  (throw 'done (point)))
