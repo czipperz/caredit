@@ -168,11 +168,7 @@ Check while (...);"
                 (= ?o (char-before)))
               (progn
                 (backward-char)
-                (= ?d (char-before)))
-              ;; (= (1- (point))
-              ;;    (save-excursion
-              ;;      (caredit--beginning-of-balanced-statement)))
-              ))))))
+                (= ?d (char-before)))))))))
 
 (defun caredit--fix-do-while-nobrace-beginning ()
   "do a;| while (...);  =>  |do a; while (...);
