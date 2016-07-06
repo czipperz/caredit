@@ -31,13 +31,17 @@
 
 ;;; Code:
 
+
+;;; Requires:
 ;; c-beginning-of-statement, c-end-of-statement
 (require 'cc-mode)
 (require 'cl-lib)
 
+
+;;; Consts:
 (defconst caredit-version "0.0.1")
 
-;;; Declaring the variables at compilation removes warnings.
+;; Declaring the variables at compilation removes warnings.
 (eval-when-compile
   (defvar caredit--open-chars)
   (defvar caredit--close-chars))
@@ -45,6 +49,8 @@
 (setq caredit--open-chars (list ?\( ?\[ ?\{))
 (setq caredit--close-chars (list ?\) ?\] ?\}))
 
+
+;;; Macros:
 (defmacro caredit--assert (exp &optional message should-format)
   "Assert EXP is truthy, throwing an error if it didn't.
 
@@ -61,16 +67,22 @@ SHOULD-FORMAT is t."
              message)
          (format "Assertion failed: %s" exp)))))
 
-(defmacro caredit--does-point-move (&rest body)
-  "Evaluate BODY, return t if point is not equal to it was before that execution.  Saves excursion.
-
-The point is stored in a `gensym'd value, so not accessible in BODY."
+(defmacro caredit--did-point-move (&rest body)
+  "Evaluate BODY, return t if point is not equal to what is was before that execution."
   (declare (indent 0))
   (let ((old-point (cl-gensym)))
-    `(save-excursion
-       (let ((,old-point (point)))
-         ,@body
-         (/= ,old-point (point))))))
+    `(let ((,old-point (point)))
+       ,@body
+       (/= ,old-point (point)))))
+
+(defmacro caredit--does-point-move (&rest body)
+  "Wrap `caredit--did-point-move' in a `save-excursion'.
+
+Evaluates BODY, returning t if point is not equal to what it was
+before that execution, saving the excursion."
+  (declare (indent 0))
+  `(save-excursion
+     (caredit--did-point-move ,@body)))
 
 (defmacro caredit--where-does-point-move (&rest body)
   "Evaluate BODY and return the resulting point, saving excursion."
@@ -99,6 +111,8 @@ You can use it to change the way this function handles errors."
   (declare (indent 1))
   `(condition-case err ,fst (error ,snd)))
 
+
+;;; Utility functions:
 (defun caredit--list-level ()
   "Get the number of times `backward-up-list' works."
   (nth 0 (syntax-ppss)))
@@ -127,6 +141,62 @@ c; |{ a; b; } |d;  =>  c; { a;| b; } d;"
                       (point-max) nil)
   (point))
 
+(defun caredit--forward-over-whitespace ()
+  "Move forward while on whitespace."
+  (while (and (not (eobp)) (caredit--whitespace-p (char-after)))
+    (forward-char))
+  (point))
+
+(defun caredit--backward-over-whitespace ()
+  "Move backward while after whitespace."
+  (while (and (not (bobp)) (caredit--whitespace-p (char-before)))
+    (backward-char))
+  (point))
+
+(defun caredit--get-region (mark point)
+  "Get region MARK POINT."
+  (interactive (list (mark) (point)))
+  (save-excursion (let ((reg (get-register ?r)))
+                    (copy-to-register ?r mark point)
+                    (prog1 (get-register ?r)
+                      (set-register ?r reg)))))
+
+
+;;; Predicates:
+(defun caredit--whitespace-p (ch)
+  "Test if CH is whitespace."
+  (or (= ch ? )
+      (= ch ?\t)
+      (= ch ?\n)))
+
+(defun caredit--in-string-p ()
+  "Test if point is in a string.
+
+\"asd|f\"  =>  t
+\"asdf|\"  =>  t
+\"asdf\"|  =>  nil
+|\"asdf\"  =>  nil"
+  (= ?\" (or (nth 3 (syntax-ppss)) 0)))
+
+(defun caredit--in-comment-p ()
+  "Test if point is in a comment.
+
+//| asdf  =>  t
+// a|sdf  =>  t
+/|/ asdf  =>  nil"
+  (if (nth 4 (syntax-ppss)) t nil))
+
+(defun caredit--in-char-p ()
+  "Test if point is in a character literal.
+
+'|a'  =>  t
+'a|'  =>  t
+|'a'  =>  nil
+'a'|  =>  nil"
+  (= ?\' (or (nth 3 (syntax-ppss)) 0)))
+
+
+;;; caredit--{beginning,end}-of-balanced-statement implementation:
 (defun caredit--internal-at-do-while-while ()
   "DO NOT USE THIS.
 
@@ -170,6 +240,14 @@ Check while (...);"
                 (backward-char)
                 (= ?d (char-before)))))))))
 
+(defun caredit--internal-at-do-keyword ()
+  "Test if `do ' or `do{'."
+  (save-excursion
+    (and (looking-at-p "do")
+         (progn (forward-char 2)
+                (or (caredit--whitespace-p (char-after))
+                    (= ?\{ (char-after)))))))
+
 (defun caredit--fix-do-while-nobrace-beginning ()
   "do a;| while (...);  =>  |do a; while (...);
 
@@ -182,14 +260,7 @@ Return t if moved, nil otherwise."
         (backward-char)
         (caredit--beginning-of-balanced-statement)
         ;; |do a;
-        (caredit--assert (looking-at-p "do") "")
-        ;; check space after do
-        (save-excursion
-          (progn
-            (forward-char 2)
-            (caredit--assert (caredit--whitespace-p (char-after))
-                             "")))
-        t))))
+        (caredit--internal-at-do-keyword)))))
 
 (defun caredit--fix-do-while-nobrace-end ()
   "do a;| while (...);  =>  do a; while (...);|"
@@ -202,13 +273,7 @@ Return t if moved, nil otherwise."
           (backward-char)
           (caredit--beginning-of-balanced-statement)
           ;; |do a;
-          (caredit--assert (looking-at-p "do") "")
-          ;; check space after do
-          (save-excursion
-            (progn
-              (forward-char 2)
-              (caredit--assert (caredit--whitespace-p (char-after))
-                               ""))))
+          (caredit--assert (caredit--internal-at-do-keyword)))
         (forward-list)
         (forward-char)))))
 
@@ -274,30 +339,56 @@ do a; while (0); d;|  =>  do a; while (0); |d;
         (cond ((bobp)
                (caredit--forward-over-whitespace)
                (caredit--assert (< (point) old-point)
-                                "No more balanced statements.")
+                                "No more balanced statements")
                (throw 'done (point)))
               ((or (caredit--in-comment-p)
                    (caredit--in-char-p)
                    (caredit--in-string-p))
                (backward-char))
               ((= (char-before) ?\;)
+               ;; properly detect |do a; while (...);
+               ;; (go to |a; if point was in a;)
+               (let ((p
+                      (catch 'pt
+                        (ignore-errors
+                          (save-excursion
+                            (let ((p (point)))
+                              (caredit--forward-over-whitespace)
+                              (when (caredit--internal-at-do-keyword)
+                                (forward-char 2)
+                                (caredit--forward-over-whitespace)
+                                (let ((p (point)))
+                                  (when (> old-point p)
+                                    (caredit--end-of-balanced-statement)
+                                    (when (< old-point (point))
+                                      (throw 'pt p)))))))))))
+                 (when p
+                   (goto-char p)
+                   (throw 'done p)))
                ;; properly detect do a;| while (...);
                ;; (go to |do a;.  Without this do a; |while)
-               (caredit--fix-do-while-nobrace-beginning)
+               (let ((p (point)))
+                 (caredit--fix-do-while-nobrace-beginning)
+                 (when (and (/= p (point))
+                            (< old-point p)
+                            (>= old-point
+                                (caredit--where-does-point-move
+                                  (caredit--forward-over-whitespace)
+                                  (forward-char 2)
+                                  (caredit--forward-over-whitespace))))
+                   (goto-char p)
+                   (throw 'done (point))))
                (when (caredit--does-point-move
                        (caredit--forward-over-else))
                  ;; |else
                  (caredit--beginning-of-balanced-statement))
-               ;; (caredit--fix-)
                (caredit--forward-over-whitespace)
                (throw 'done (point)))
               ((= (char-before) ?\})
                (when (caredit--internal-at-do-while)
-                 ;; handle do {}| while ();
+                 ;; handle do {}| while ();  =>  |do {} while ();
                  (backward-list)
-                 (backward-word)
-                 ;; |do {} while ();
-                 )
+                 (backward-word))
                (caredit--move-backward-over-if/else-if)
                (when (caredit--does-point-move
                        (caredit--forward-over-else))
@@ -430,38 +521,34 @@ c; |{ a; b; } d;  =>  c; { a; b; }| d;"
                 (t
                  (forward-char))))))))
 
-(defun caredit--in-string-p ()
-  "Test if point is in a string.
-
-\"asd|f\"  =>  t
-\"asdf|\"  =>  t
-\"asdf\"|  =>  nil
-|\"asdf\"  =>  nil"
-  (= ?\" (or (nth 3 (syntax-ppss)) 0)))
-
-(defun caredit--in-comment-p ()
-  "Test if point is in a comment.
-
-//| asdf  =>  t
-// a|sdf  =>  t
-/|/ asdf  =>  nil"
-  (if (nth 4 (syntax-ppss)) t nil))
-
-(defun caredit--in-char-p ()
-  "Test if point is in a character literal.
-
-'|a'  =>  t
-'a|'  =>  t
-|'a'  =>  nil
-'a'|  =>  nil"
-  (= ?\' (or (nth 3 (syntax-ppss)) 0)))
-
-;;; Taken from paredit.  Have to evaluate at compile time so it can be
-;;; used in other macros safely.
+
+;;; Define functions for manipulating default pairs:
+;; This design of binding functions originated in Paredit.
 (eval-and-compile
   (defun caredit--conc-name (&rest strings)
     "Concatenate STRINGS and tern them into an atom."
     (intern (apply 'concat strings))))
+
+(defun caredit-get-current-statement ()
+  "Return a pair of the beginning of the current statement and the end."
+  (save-excursion
+    (let (b e)
+      ;; There is a possibility one fails, so call in both orders.  In
+      ;; this order so goes forward over spaces first before going
+      ;; backwards.
+      (caredit--orelse
+          (progn (setq e (caredit--end-of-balanced-statement))
+                 (setq b (caredit--beginning-of-balanced-statement)))
+        (progn (setq b (caredit--beginning-of-balanced-statement))
+               (setq e (caredit--end-of-balanced-statement))))
+      (cons b e))))
+
+(defun caredit-wrap-curly ()
+  "Wrap the statement in front of point in curly braces."
+  (interactive)
+  (let ((b (point)) e)
+    (insert "{")
+    (save-excursion)))
 
 (defmacro caredit--define-wrap (open close name)
   "Define function caredit-wrap-NAME to wrap the following sexp in OPEN and CLOSE."
@@ -470,7 +557,7 @@ c; |{ a; b; } d;  =>  c; { a; b; }| d;"
 
 Inserts " (list open) " before and " (list close) " after.
 
-|aaa  =>  " (list open) "|aaa" (list close))
+|aaa;  =>  " (list open) "|aaa;" (list close))
      (interactive)
      (let ((b (point)) e)
        (insert ,open)
@@ -552,32 +639,8 @@ If in a character literal, do nothing.  This prevents changing what was
 (caredit--define-double-pair ?\" "string")
 (caredit--define-double-pair ?\' "char")
 
-(defun caredit--whitespace-p (ch)
-  "Test if CH is whitespace."
-  (or (= ch ? )
-      (= ch ?\t)
-      (= ch ?\n)))
-
-(defun caredit--forward-over-whitespace ()
-  "Move forward while on whitespace."
-  (while (and (not (eobp)) (caredit--whitespace-p (char-after)))
-    (forward-char))
-  (point))
-
-(defun caredit--backward-over-whitespace ()
-  "Move backward while after whitespace."
-  (while (and (not (bobp)) (caredit--whitespace-p (char-before)))
-    (backward-char))
-  (point))
-
-(defun caredit--get-region (mark point)
-  "Get region MARK POINT."
-  (interactive (list (mark) (point)))
-  (save-excursion (let ((reg (get-register ?r)))
-                    (copy-to-register ?r mark point)
-                    (prog1 (get-register ?r)
-                      (set-register ?r reg)))))
-
+
+;;; Sexp control:
 (defun caredit-forward-sexp ()
   "Go to next AST tree."
   (interactive)
@@ -627,6 +690,8 @@ If in a character literal, do nothing.  This prevents changing what was
          (while (member (char-before) caredit--close-chars)
            (backward-sexp)))))
 
+
+;;; Slurp:
 (defun caredit--slurp-forward-string ()
   "Slurp next expression into string."
   (save-excursion
@@ -725,6 +790,13 @@ If in a character literal, do nothing.  This prevents changing what was
                            (caredit--slurp-forward-statement))
         (caredit--slurp-forward-statement)))))
 
+
+;;; Wrap:
+(defun caredit-wrap (open close)
+  "Wrap current expression by insert OPEN before and CLOSE after it.")
+
+
+;;; Simple mapping commands:
 (defun caredit-semicolon ()
   "Insert semicolon, new line, indent."
   (interactive)
@@ -734,6 +806,8 @@ If in a character literal, do nothing.  This prevents changing what was
     (insert ";\n"))
   (indent-for-tab-command))
 
+
+;;; Mappings:
 (defmacro caredit--map-key (open close name)
   "Define keys in local buffer for inserting balanced OPEN CLOSE pairs, to functions with NAME postfixes.
 
