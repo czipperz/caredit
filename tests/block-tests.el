@@ -49,7 +49,7 @@ d;\n"
   (forward-char)
   (should (eobp)))
 
-(deftest caredit--beginning-of-balanced-statement--block-1
+(deftest caredit-beginning-of-balanced-statement--block-1
     "a;
 {
   b;
@@ -57,19 +57,19 @@ d;\n"
 }
 d;\n"
   (goto-char (point-max))
-  (caredit--beginning-of-balanced-statement)
+  (caredit-beginning-of-balanced-statement)
   (should (looking-at-p "d;\n"))
 
-  (caredit--beginning-of-balanced-statement)
+  (caredit-beginning-of-balanced-statement)
   (should (looking-at-p "{\n  b;\n"))
 
-  (caredit--beginning-of-balanced-statement)
+  (caredit-beginning-of-balanced-statement)
   (should (looking-at-p "a;\n{\n  b;\n"))
   (should (bobp))
 
   (should-not
    (caredit--does-point-move
-     (should-error (caredit--beginning-of-balanced-statement)))))
+     (should-error (caredit-beginning-of-balanced-statement)))))
 
 (provide 'block-tests)
 ;;; block-tests.el ends here

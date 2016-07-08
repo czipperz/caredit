@@ -69,18 +69,18 @@
   (caredit--end-of-statement)
   (should (eolp)))
 
-(deftest caredit--beginning-of-balanced-statement--movement-1
+(deftest caredit-beginning-of-balanced-statement--movement-1
     "while (0) { a, b; c; } d, e;\n"
   (goto-char (point-max))
 
-  (caredit--beginning-of-balanced-statement)
+  (caredit-beginning-of-balanced-statement)
   (should (looking-at-p "d, e;$"))
 
-  (caredit--beginning-of-balanced-statement)
+  (caredit-beginning-of-balanced-statement)
   (should (bobp))
   (should (looking-at-p "while (0) { a, b; c; } d, e;$"))
 
-  (should-error (caredit--beginning-of-balanced-statement))
+  (should-error (caredit-beginning-of-balanced-statement))
   (should (bobp)))
 
 (deftest caredit--end-of-balanced-statement--movement-1

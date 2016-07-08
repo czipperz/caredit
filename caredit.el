@@ -538,8 +538,8 @@ c; |{ a; b; } d;  =>  c; { a; b; }| d;"
       ;; backwards.
       (caredit--orelse
           (progn (setq e (caredit--end-of-balanced-statement))
-                 (setq b (caredit--beginning-of-balanced-statement)))
-        (progn (setq b (caredit--beginning-of-balanced-statement))
+                 (setq b (caredit-beginning-of-balanced-statement)))
+        (progn (setq b (caredit-beginning-of-balanced-statement))
                (setq e (caredit--end-of-balanced-statement))))
       (cons b e))))
 
@@ -847,6 +847,8 @@ M-OPEN is set to caredit-wrap-NAME."
   (caredit--map-double-key ?\' "char")
 
   (local-set-key (kbd ";") 'caredit-semicolon))
+
+(require 'caredit-beginning-of-balanced-statement)
 
 (provide 'caredit)
 ;;; caredit.el ends here

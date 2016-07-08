@@ -43,6 +43,8 @@ Sets up c++-mode, font locking, and goes to bob."
        ,test-name ()
        (with-temp-buffer
          (c++-mode)
+         (setq-local font-lock-beginning-of-syntax-function
+                     'beginning-of-buffer)
          (font-lock-mode)
          (insert ,file-contents)
          (font-lock-fontify-block)

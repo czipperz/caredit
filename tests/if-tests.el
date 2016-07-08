@@ -116,7 +116,7 @@
   (caredit--end-of-balanced-statement)
   (should (looking-at-p " } while (0);\n")))
 
-(deftest caredit--beginning-of-balanced-statement--if-1
+(deftest caredit-beginning-of-balanced-statement--if-1
     "if (1) {
   2;
 } else if (3) {
@@ -125,46 +125,95 @@
   5;
 }\n"
   (goto-char (point-max))
-  (caredit--beginning-of-balanced-statement)
+  (caredit-beginning-of-balanced-statement)
   (should (bobp))
 
-  (should-error (caredit--beginning-of-balanced-statement))
+  (should-error (caredit-beginning-of-balanced-statement))
 
   (goto-char 14)
   (should (looking-at-p "\n} else if (3) {\n  do { 4;"))
 
-  (caredit--beginning-of-balanced-statement)
+  (caredit-beginning-of-balanced-statement)
   (should (looking-at-p "2;\n} else if (3) {\n  do { 4;"))
 
-  (should-error (caredit--beginning-of-balanced-statement))
+  (should-error (caredit-beginning-of-balanced-statement))
 
   (goto-char 53)
   (should (looking-at-p "\n} else {\n  5;\n}\n"))
 
-  (caredit--beginning-of-balanced-statement)
+  (caredit-beginning-of-balanced-statement)
   (should (looking-at-p "do { 4; } while (0);\n"))
 
-  (should-error (caredit--beginning-of-balanced-statement))
+  (should-error (caredit-beginning-of-balanced-statement))
 
   (goto-char 40)
-  (caredit--beginning-of-balanced-statement)
-  (should (looking-at-p "4; } while (0);\n")))
+  (caredit-beginning-of-balanced-statement)
+  (should (looking-at-p "4; } while (0);\n"))
 
-(deftest caredit--beginning-of-balanced-statement--if-2
+  ;; test every point in top statement goes to `point-min'
+  (dolist (p (list (+ 1 (point-min))
+                   ;; | else if (3) {
+                   16
+                   ;; | else {
+                   55))
+    (goto-char p)
+    (while (/= (char-before) ?\{)
+      (caredit-beginning-of-balanced-statement)
+      (should (bobp))
+      (setq p (1+ p))
+      (goto-char p)))
+
+  ;; In `' pairs, caredit-beginning-of-balanced-statement should go to
+  ;; |d`o '{ 4; }` while (0);\n'}
+  (let ((p 34))
+    (goto-char p)
+    (should (looking-at-p "o { 4; } while (0);\n"))
+
+    (while (/= (char-after) ?\})
+      (caredit-beginning-of-balanced-statement)
+      (should (looking-at-p "do { 4; } while (0);\n"))
+      (setq p (1+ p))
+      (goto-char p)
+      (when (= (char-before) ?\{)
+        (backward-char)
+        (forward-list)
+        (setq p (point))))))
+
+(deftest caredit-beginning-of-balanced-statement--if-2
     "if (1) 2; else if (3) do { 4; } while (0); else 5;\n"
   (goto-char (point-max))
-  (caredit--beginning-of-balanced-statement)
+  (caredit-beginning-of-balanced-statement)
   (should (bobp))
 
-  (should-error (caredit--beginning-of-balanced-statement)))
+  (should-error (caredit-beginning-of-balanced-statement))
 
-(deftest caredit--beginning-of-balanced-statement--if-3
+  (goto-char 9)
+  (should (looking-at-p "; else if (3)"))
+
+  (caredit-beginning-of-balanced-statement)
+  (should (looking-at-p "2; else if (3)"))
+
+  (let ((p 24))
+    (goto-char p)
+    (should (looking-at-p "o { 4; } while (0);"))
+
+    (while (/= (char-before) ?\;)
+      (caredit-beginning-of-balanced-statement)
+      (should (looking-at-p "do { 4; } while (0);"))
+      (setq p (1+ p))
+      (goto-char p)
+      (when (= (char-before) ?\{)
+        (backward-char)
+        (forward-list)
+        (setq p (point))))))
+
+(deftest caredit-beginning-of-balanced-statement--if-3
     "if (1) 2; else if (3) { do { 4; } while (0); } else 5;\n"
   (goto-char (point-max))
-  (caredit--beginning-of-balanced-statement)
+  (caredit-beginning-of-balanced-statement)
   (should (bobp))
 
-  (should-error (caredit--beginning-of-balanced-statement)))
+  (should-error (caredit-beginning-of-balanced-statement)))
 
 (provide 'if-tests)
 ;;; if-tests.el ends here

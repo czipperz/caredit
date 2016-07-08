@@ -29,41 +29,50 @@
 (require 'caredit)
 (require 'test-utils)
 
-(deftest caredit--beginning-of-balanced-statement--do-while-1
+(deftest caredit-beginning-of-balanced-statement--do-while-1
     "z; do { a; b; c; } while (0); d; e;\n"
   (goto-char (point-max))
 
-  (caredit--beginning-of-balanced-statement)
+  (caredit-beginning-of-balanced-statement)
   (should (looking-at-p "e;$"))
 
-  (caredit--beginning-of-balanced-statement)
+  (caredit-beginning-of-balanced-statement)
   (should (looking-at-p "d; e;$"))
 
-  (caredit--beginning-of-balanced-statement)
+  (caredit-beginning-of-balanced-statement)
   (should (looking-at-p "do { a; b; c; } while (0); d; e;$"))
 
-  (caredit--beginning-of-balanced-statement)
+  (caredit-beginning-of-balanced-statement)
   (should (bobp))
 
-  (should-error (caredit--beginning-of-balanced-statement)))
+  (should-error (caredit-beginning-of-balanced-statement)))
 
-(deftest caredit--beginning-of-balanced-statement--do-while-2
+(deftest caredit-beginning-of-balanced-statement--do-while-2
     "z; do a; while (0); d; e;\n"
   (goto-char (point-max))
 
-  (caredit--beginning-of-balanced-statement)
+  (caredit-beginning-of-balanced-statement)
   (should (looking-at-p "e;$"))
 
-  (caredit--beginning-of-balanced-statement)
+  (caredit-beginning-of-balanced-statement)
   (should (looking-at-p "d; e;$"))
 
-  (caredit--beginning-of-balanced-statement)
+  (caredit-beginning-of-balanced-statement)
   (should (looking-at-p "do a; while (0); d; e;$"))
 
-  (caredit--beginning-of-balanced-statement)
+  (caredit-beginning-of-balanced-statement)
   (should (bobp))
 
-  (should-error (caredit--beginning-of-balanced-statement)))
+  (should-error (caredit-beginning-of-balanced-statement))
+
+  (goto-char 8)
+  (should (looking-at-p "; while (0);"))
+
+  (caredit-beginning-of-balanced-statement)
+  (should (looking-at-p "a; while (0);"))
+
+  (caredit-beginning-of-balanced-statement)
+  (should (looking-at-p "do a; while (0);")))
 
 (deftest caredit--end-of-balanced-statement--do-while-1
     "z; do { a; b; c; } while (0); d; e;\n"
