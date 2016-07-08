@@ -25,7 +25,7 @@
   "Increment VAR by NUM, or 1."
   `(setq ,var (+ ,var ,(or num 1))))
 
-(defun caredit--after--do-brackets ()
+(defun caredit--after-do-brackets ()
   "Test if after `do {}'.
 
 do |{}  =>  nil
@@ -43,10 +43,10 @@ do {}|  =>  t"
       (caredit--assert (/= ?\_ (char-before)))
       t)))
 
-(defun caredit--after--do-nobrackets ()
-  "Test if after `do a;' (and before `while' keyword)."
+(defun caredit--move-before-do-nobrackets ()
+  "Test if cursor at `do a; |while'.  If so, move to `|do a; while'."
   (ignore-errors
-    (save-excursion
+    (caredit--error-save-excursion
       (caredit--assert (caredit--before-keyword "while"))
       (caredit--backward-over-whitespace)
       (caredit--assert (= (char-before) ?\;))
@@ -55,6 +55,10 @@ do {}|  =>  t"
       (caredit-beginning-of-balanced-statement)
       (caredit--assert (caredit--before-keyword "do"))
       t)))
+(defun caredit--after-do-nobrackets ()
+  "Test if after `do a;' (and before `while' keyword)."
+  (save-excursion
+    (caredit--move-before-do-nobrackets)))
 
 (defun caredit--move-after-keyword (keyword)
   "Test if before KEYWORD.  If so, move forward over it and return t."
@@ -75,8 +79,6 @@ do {}|  =>  t"
 
 If OLD is given, only move if the resulting point is less than it."
   (let ((_p (point)))
-    ;; fix:  if () a|;  =>  if () |a;
-    ;; instead of           |if () a;
     (condition-case err
         (progn
           (caredit--assert
@@ -100,18 +102,26 @@ If OLD is given, only move if the resulting point is less than it."
   "Test if we are at the beginning of a statement."
   (save-excursion
     (or (bobp)
+        (and (= 1 over-semi)
+             (not over-else)
+             (caredit--before-keyword "do")
+             (throw 'done nil))
         (and
          (or
           (and (= (char-before) ?\;)
-               (not (and (caredit--after--do-nobrackets)
-                         (prog1 t (caredit--increment-var over-semi))
-                         )))
+               (not (and (caredit--after-do-nobrackets)
+                         (if (and
+                              (= 0 over-semi)
+                              (caredit--move-before-do-nobrackets))
+                             (progn
+                               (caredit--increment-var over-semi 1)
+                               (throw 'done nil))
+                           t))))
           (and (= (char-before) ?\})
-               (not (and (caredit--after--do-brackets)
-                         (prog1 t (caredit--increment-var over-semi))
-                         ))))
+               (not (caredit--after-do-brackets))))
          (not (and (caredit--before-keyword "else")
                    (prog1 t
+                     (setq over-else t)
                      (when (= 0 over-semi)
                        (let ((p (point)))
                          (condition-case nil
@@ -164,10 +174,12 @@ If OLD is given, only move if the resulting point is less than it."
   (caredit--error-save-excursion
     (caredit--backward-out-of-parens)
     (caredit--backward-over-whitespace)
-    (let ((statements 1) (over-semi 0))
+    (let ((statements 1) (over-semi 0) over-else)
       (cond ((or (bobp) (= (char-before) ?\{))
              (caredit--beginning-error))
             ((= (char-before) ?\;)
+             (if (caredit--before-keyword "else")
+                 (setq over-else t))
              (backward-char)
              (caredit--increment-var over-semi))
             ((= (char-before) ?\})
@@ -183,29 +195,66 @@ If OLD is given, only move if the resulting point is less than it."
               (backward-list))
           (if (caredit--at-beginning-of-statement)
               (caredit--increment-var statements -1)
-            (caredit--backward-balanced-char)))) ; while
+            (caredit--backward-balanced-char))))
 
-      (when (= 0 over-semi)
-        (let ((_p (point)))
-          ;; fix:  do a|;  =>  do |a;
-          ;; instead of        |do a;
-          (condition-case nil
-              (progn
-                (caredit--assert
-                 (caredit--move-after-keyword "do"))
-                (caredit--forward-over-whitespace)
-                (caredit--assert (> old-point (point)))
-                (caredit--assert (/= (char-after) ?\{)))
-            (error (goto-char _p)))))
-      (when (= 0 over-semi)
-        (let ((_p (point)))
-          (condition-case nil
-              (progn
-                (caredit--move-after-keyword "else")
-                (caredit--assert
-                 (caredit--move-after-if old-point))
-                (caredit--assert (/= (char-after) ?\{)))
-            (error (goto-char _p))))))
+      ;; loop while fixes are still being done
+      (catch 'done
+        (while (let ((_pt (point)))
+                 (when (= 0 over-semi)
+                   (let ((_p (point)))
+                     ;; fix:  do a|;  =>  do |a;
+                     ;; instead of        |do a;
+                     (condition-case nil
+                         (progn
+                           (caredit--assert
+                            (caredit--move-after-keyword "do"))
+                           (caredit--forward-over-whitespace)
+                           (caredit--assert (> old-point (point)))
+                           (caredit--assert (/= (char-after) ?\{)))
+                       (error
+                        (goto-char _p))))
+                   (let ((_p (point)))
+                     ;; fix:  if () a|;  =>  if () |a;
+                     ;; instead of           |if () a;
+                     ;; and:  else if () a|;  =>  else if () |a;
+                     ;; instead of                |else if () a;
+                     (condition-case nil
+                         (progn
+                           (caredit--move-after-keyword "else")
+                           (caredit--assert
+                            (caredit--move-after-if old-point))
+                           (caredit--assert (/= (char-after) ?\{)))
+                       (error
+                        (goto-char _p))))
+                   (let ((_p (point)))
+                     ;; fix:  else a|;  =>  else |a;
+                     ;; instead of          |else a;
+                     (condition-case nil
+                         (progn
+                           (caredit--assert
+                            (caredit--move-after-keyword "else"))
+                           (caredit--assert (/= (char-after) ?\{)))
+                       (error
+                        (goto-char _p))))
+                   (let ((_p (point)))
+                     ;; fix:  while (1) a|;  =>  while (1) |a;
+                     ;; instead of               |while (1) a;
+                     (condition-case nil
+                         (progn
+                           (caredit--assert
+                            (caredit--before-keyword "while"))
+                           (forward-list)
+                           (caredit--forward-over-whitespace)
+                           (caredit--assert
+                            (> old-point (point)))
+                           (caredit--assert
+                            (/= (char-after) ?\{)))
+                       (error
+                        (goto-char _p)))))
+                 ;; fix:  do a; while b;|  =>  |do a; while b;
+                 ;; instead of                 do a; |while b;
+                 (caredit--move-before-do-nobrackets)
+                 (/= _pt (point))))))
     (caredit--forward-over-whitespace))
   (point))
 

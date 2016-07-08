@@ -215,5 +215,80 @@
 
   (should-error (caredit-beginning-of-balanced-statement)))
 
+(deftest caredit-beginning-of-balanced-statement--if-4
+    "if (1) 2; else if (3) do 4; while (0); else 5;\n"
+  (goto-char (point-max))
+  (caredit-beginning-of-balanced-statement)
+  (should (bobp))
+
+  (should-error (caredit-beginning-of-balanced-statement))
+
+  ;; i`f (1) '  should go to bob
+  (let ((p (1+ (point-min))))
+    (goto-char p)
+    (while (/= (char-before) ?2)
+      (caredit-beginning-of-balanced-statement)
+      (should (bobp))
+      (goto-char (setq p (1+ p)))))
+
+  ;; if (1) 2|;  should go to  if (1) |2;
+  (should (looking-at-p "; else if (3)"))
+  (caredit-beginning-of-balanced-statement)
+  (should (looking-at-p "2; else if (3)"))
+
+  ;; 2;` else if (3) 'do 4;  should go to bob
+  (let ((p 10))
+    (goto-char p)
+    (should (looking-at-p " else if (3) do 4;"))
+    (while (/= (char-before) ?d)
+      (caredit-beginning-of-balanced-statement)
+      (should (bobp))
+      (goto-char (setq p (1+ p)))))
+
+  ;; d`o '4;` while (0)';  should go to `|do 4; while (0);'
+  ;; do 4|; while (0);  should go to  do |4; while (0);
+  (let ((p 24))
+    (goto-char p)
+    (should (looking-at-p "o 4; while (0);"))
+    (while (/= (char-before) ?4)
+      (caredit-beginning-of-balanced-statement)
+      (should (looking-at-p "do 4; while (0);"))
+      (goto-char (setq p (1+ p))))
+    (caredit-beginning-of-balanced-statement)
+    (should (looking-at-p "4; while (0);"))
+
+    (goto-char (setq p (1+ p)))
+    (should (looking-at-p " while (0);"))
+
+    (caredit-beginning-of-balanced-statement)
+    (should (looking-at-p "do 4; while (0);"))
+
+    (goto-char (setq p (1+ p)))
+    (should (looking-at-p "while (0);"))
+
+    (while (/= (char-before) ?\;)
+      (caredit-beginning-of-balanced-statement)
+      (should (looking-at-p "do 4; while (0);"))
+      (goto-char (setq p (1+ p)))))
+
+  ;; while (0);` else '5;  should go to bob
+  (let ((p 39))
+    (goto-char p)
+    (should (looking-at-p " else 5;"))
+    (while (/= (char-before) ?5)
+      (caredit-beginning-of-balanced-statement)
+      (should (bobp))
+      (goto-char (setq p (1+ p))))
+
+    ;; else 5|;  should go to  else |5;
+    (should (looking-at-p ";$"))
+    (caredit-beginning-of-balanced-statement)
+    (should (looking-at-p "5;$"))
+
+    ;; else 5;|  should to go bob
+    (goto-char (setq p (1+ p)))
+    (caredit-beginning-of-balanced-statement)
+    (should (bobp))))
+
 (provide 'if-tests)
 ;;; if-tests.el ends here
