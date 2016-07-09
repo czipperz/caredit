@@ -1,4 +1,5 @@
 ;;; caredit-beginning-of-balanced-statement.el --- Provide name of module as a function
+
 ;; Copyright (C) 2016 Chris Gregory czipperz@gmail.com
 
 ;; This program is free software: you can redistribute it and/or modify
@@ -126,17 +127,16 @@ If OLD is given, only move if the resulting point is less than it."
                        (let ((p (point)))
                          (condition-case nil
                              (progn
+                               ;; fix some corner cases of moving
+                               ;; where should go after else/else if ()
+                               ;; but instead goes before them.
                                (forward-word)
-                               (if (caredit--move-after-if)
-                                   (if (and (> old-point (point))
-                                            (/= (char-after) ?\{))
-                                       (throw 'done nil)
-                                     (goto-char p))
-                                 (caredit--forward-over-whitespace)
-                                 (if (and (> old-point (point))
-                                          (/= (char-after) ?\{))
-                                     (throw 'done nil)
-                                   (goto-char p))))
+                               (caredit--move-after-if)
+                               (caredit--forward-over-whitespace)
+                               (if (and (> old-point (point))
+                                        (/= (char-after) ?\{))
+                                   (throw 'done nil)
+                                 (goto-char p)))
                            (error (goto-char p)))))
                      (caredit--increment-var over-semi)))))
         (= (char-before) ?\{))))
@@ -147,9 +147,7 @@ If OLD is given, only move if the resulting point is less than it."
 
 (defun caredit--backward-balanced-char ()
   "Go backward a list if at end of a list.  Go backward a char otherwise."
-  (cond ((= (char-before) ?\()
-         (backward-list))
-        ((member (char-before) caredit--close-chars)
+  (cond ((member (char-before) caredit--close-chars)
          (backward-list))
         ((= (char-before) ?\{)
          (caredit--beginning-error))

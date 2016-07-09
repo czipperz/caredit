@@ -507,8 +507,8 @@ c; |{ a; b; } d;  =>  c; { a; b; }| d;"
                  (forward-list)
                  (when (caredit--internal-at-do-while)
                    ;; handle do {}| while ();
-                   (forward-word)
                    (forward-list)
+                   (caredit--forward-over-whitespace)
                    (forward-char)
                    ;; while ();|
                    )
@@ -542,13 +542,6 @@ c; |{ a; b; } d;  =>  c; { a; b; }| d;"
         (progn (setq b (caredit-beginning-of-balanced-statement))
                (setq e (caredit--end-of-balanced-statement))))
       (cons b e))))
-
-(defun caredit-wrap-curly ()
-  "Wrap the statement in front of point in curly braces."
-  (interactive)
-  (let ((b (point)) e)
-    (insert "{")
-    (save-excursion)))
 
 (defmacro caredit--define-wrap (open close name)
   "Define function caredit-wrap-NAME to wrap the following sexp in OPEN and CLOSE."
