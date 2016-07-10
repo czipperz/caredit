@@ -188,8 +188,6 @@ If OLD is given, only move if the resulting point is less than it."
             (if (= statements 1)
                 (throw 'done nil)
               (caredit--beginning-error)))
-          (if (= (char-before) ?\))
-              (backward-list))
           (if (caredit--at-beginning-of-statement)
               (caredit--increment-var statements -1)
             (caredit--backward-balanced-char))))
