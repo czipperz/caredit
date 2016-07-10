@@ -101,45 +101,44 @@ If OLD is given, only move if the resulting point is less than it."
 
 (defun caredit--at-beginning-of-statement ()
   "Test if we are at the beginning of a statement."
-  (save-excursion
-    (or (bobp)
-        (and (= 1 over-semi)
-             (not over-else)
-             (caredit--before-keyword "do")
-             (throw 'done nil))
-        (and
-         (or
-          (and (= (char-before) ?\;)
-               (not (and (caredit--after-do-nobrackets)
-                         (if (and
-                              (= 0 over-semi)
-                              (caredit--move-before-do-nobrackets))
-                             (progn
-                               (caredit--increment-var over-semi 1)
-                               (throw 'done nil))
-                           t))))
-          (and (= (char-before) ?\})
-               (not (caredit--after-do-brackets))))
-         (not (and (caredit--before-keyword "else")
-                   (prog1 t
-                     (setq over-else t)
-                     (when (= 0 over-semi)
-                       (let ((p (point)))
-                         (condition-case nil
-                             (progn
-                               ;; fix some corner cases of moving
-                               ;; where should go after else/else if ()
-                               ;; but instead goes before them.
-                               (forward-word)
-                               (caredit--move-after-if)
-                               (caredit--forward-over-whitespace)
-                               (if (and (> old-point (point))
-                                        (/= (char-after) ?\{))
-                                   (throw 'done nil)
-                                 (goto-char p)))
-                           (error (goto-char p)))))
-                     (caredit--increment-var over-semi)))))
-        (= (char-before) ?\{))))
+  (or (bobp)
+      (and (= 1 over-semi)
+           (not over-else)
+           (caredit--before-keyword "do")
+           (throw 'done nil))
+      (and
+       (or
+        (and (= (char-before) ?\;)
+             (not (and (caredit--after-do-nobrackets)
+                       (if (and
+                            (= 0 over-semi)
+                            (caredit--move-before-do-nobrackets))
+                           (progn
+                             (caredit--increment-var over-semi 1)
+                             (throw 'done nil))
+                         t))))
+        (and (= (char-before) ?\})
+             (not (caredit--after-do-brackets))))
+       (not (and (caredit--before-keyword "else")
+                 (prog1 t
+                   (setq over-else t)
+                   (when (= 0 over-semi)
+                     (let ((p (point)))
+                       (condition-case nil
+                           (progn
+                             ;; fix some corner cases of moving
+                             ;; where should go after else/else if ()
+                             ;; but instead goes before them.
+                             (forward-word)
+                             (caredit--move-after-if)
+                             (caredit--forward-over-whitespace)
+                             (if (and (> old-point (point))
+                                      (/= (char-after) ?\{))
+                                 (throw 'done nil)
+                               (goto-char p)))
+                         (error (goto-char p)))))
+                   (caredit--increment-var over-semi)))))
+      (= (char-before) ?\{)))
 
 (defun caredit--beginning-error ()
   "Error for caredit-beginning-of-balanced-statement when no more statements."
