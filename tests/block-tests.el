@@ -26,25 +26,25 @@
 (require 'test-utils)
 (require 'caredit)
 
-(deftest caredit--end-of-balanced-statement--block-1
+(deftest caredit-end-of-balanced-statement--block-1
     "a;
 {
   b;
   c;
 }
 d;\n"
-  (caredit--end-of-balanced-statement)
+  (caredit-end-of-balanced-statement)
   (should (looking-at-p "\n{\n  b;\n"))
 
-  (caredit--end-of-balanced-statement)
+  (caredit-end-of-balanced-statement)
   (should (looking-at-p "\nd;\n"))
 
-  (caredit--end-of-balanced-statement)
+  (caredit-end-of-balanced-statement)
   (should (eolp))
 
   (should-not
    (caredit--does-point-move
-     (should-error (caredit--end-of-balanced-statement))))
+     (should-error (caredit-end-of-balanced-statement))))
 
   (forward-char)
   (should (eobp)))

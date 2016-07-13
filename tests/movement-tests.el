@@ -32,43 +32,6 @@
 (require 'ert)
 (require 'test-utils)
 
-(deftest caredit--beginning-of-statement--movement-1
-    "do { a, b; c; } d, e;\n"
-  (goto-char (point-max))
-
-  (caredit--beginning-of-statement)
-  (should (looking-at-p "d, e;$"))
-
-  (caredit--beginning-of-statement)
-  (should (looking-at-p "c; } d, e;$"))
-
-  (caredit--beginning-of-statement)
-  (should (looking-at-p "a, b; c; } d, e;$"))
-
-  (caredit--beginning-of-statement)
-  (should (looking-at-p "{ a, b; c; } d, e;$"))
-
-  (caredit--beginning-of-statement)
-  (should (bobp)))
-
-(deftest caredit--end-of-statement--movement-1
-    "do { a, b; c; } d, e;\n"
-
-  (caredit--end-of-statement)
-  (should (looking-at-p " { a, b; c; } d, e;$"))
-
-  (caredit--end-of-statement)
-  (should (looking-at-p " c; } d, e;$"))
-
-  (caredit--end-of-statement)
-  (should (looking-at-p " } d, e;$"))
-
-  (caredit--end-of-statement)
-  (should (looking-at-p " d, e;$"))
-
-  (caredit--end-of-statement)
-  (should (eolp)))
-
 (deftest caredit-beginning-of-balanced-statement--movement-1
     "while (0) { a, b; c; } d, e;\n"
   (goto-char (point-max))
@@ -83,13 +46,13 @@
   (should-error (caredit-beginning-of-balanced-statement))
   (should (bobp)))
 
-(deftest caredit--end-of-balanced-statement--movement-1
+(deftest caredit-end-of-balanced-statement--movement-1
     "while (0) { a, b; c; } d, e;\n"
 
-  (caredit--end-of-balanced-statement)
+  (caredit-end-of-balanced-statement)
   (should (looking-at-p " d, e;$"))
 
-  (caredit--end-of-balanced-statement)
+  (caredit-end-of-balanced-statement)
   (should (eolp)))
 
 (provide 'movement-tests)

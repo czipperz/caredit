@@ -26,64 +26,64 @@
 (require 'caredit)
 (require 'test-utils)
 
-(deftest caredit--end-of-balanced-statement--if-1
+(deftest caredit-end-of-balanced-statement--if-1
     "a; if (boo) b; c;\n"
-  (caredit--end-of-balanced-statement)
+  (caredit-end-of-balanced-statement)
   (should (looking-at-p " if (boo) b; c;$"))
 
-  (caredit--end-of-balanced-statement)
+  (caredit-end-of-balanced-statement)
   (should (looking-at-p " c;$"))
 
-  (caredit--end-of-balanced-statement)
+  (caredit-end-of-balanced-statement)
   (should (eolp))
 
-  (should-error (caredit--end-of-balanced-statement)))
+  (should-error (caredit-end-of-balanced-statement)))
 
-(deftest caredit--end-of-balanced-statement--if-2
+(deftest caredit-end-of-balanced-statement--if-2
     "a; if (boo) { b; c; } d;"
-  (caredit--end-of-balanced-statement)
+  (caredit-end-of-balanced-statement)
   (should (looking-at-p " if (boo) { b; c; } d;$"))
 
-  (caredit--end-of-balanced-statement)
+  (caredit-end-of-balanced-statement)
   (should (looking-at-p " d;$"))
 
-  (caredit--end-of-balanced-statement)
+  (caredit-end-of-balanced-statement)
   (should (eolp))
 
-  (should-error (caredit--end-of-balanced-statement)))
+  (should-error (caredit-end-of-balanced-statement)))
 
-(deftest caredit--end-of-balanced-statement--if-3
+(deftest caredit-end-of-balanced-statement--if-3
     "a; if (boo) a; else b; c;\n"
-  (caredit--end-of-balanced-statement)
+  (caredit-end-of-balanced-statement)
   (should (looking-at-p " if (boo) a; else b; c;$"))
 
-  (caredit--end-of-balanced-statement)
+  (caredit-end-of-balanced-statement)
   (should (looking-at-p " c;$"))
 
-  (caredit--end-of-balanced-statement)
+  (caredit-end-of-balanced-statement)
   (should (eolp))
 
-  (should-error (caredit--end-of-balanced-statement))
+  (should-error (caredit-end-of-balanced-statement))
 
   (goto-char 8)
   (should (looking-at-p "boo) a; else b; c;$"))
 
-  (caredit--end-of-balanced-statement)
+  (caredit-end-of-balanced-statement)
   (should (looking-at-p " c;$"))
 
   (goto-char 13)
   (should (looking-at-p "a; else b; c;$"))
 
-  (caredit--end-of-balanced-statement)
+  (caredit-end-of-balanced-statement)
   (should (looking-at-p " else b; c;$"))
 
-  (caredit--end-of-balanced-statement)
+  (caredit-end-of-balanced-statement)
   (should (looking-at-p " c;$"))
 
-  (caredit--end-of-balanced-statement)
+  (caredit-end-of-balanced-statement)
   (should (looking-at-p "$")))
 
-(deftest caredit--end-of-balanced-statement--if-4
+(deftest caredit-end-of-balanced-statement--if-4
     "if (1) {
   2;
 } else if (3) {
@@ -91,29 +91,29 @@
 } else {
   5;
 }"
-  (caredit--end-of-balanced-statement)
+  (caredit-end-of-balanced-statement)
   (should (eobp))
 
-  (should-error (caredit--end-of-balanced-statement))
+  (should-error (caredit-end-of-balanced-statement))
 
   (goto-char 10)
   (should (looking-at-p "  2;\n} else if (3) {\n  do { 4;"))
 
-  (caredit--end-of-balanced-statement)
+  (caredit-end-of-balanced-statement)
   (should (looking-at-p "\n} else if (3) {\n  do { 4;"))
 
-  (should-error (caredit--end-of-balanced-statement))
+  (should-error (caredit-end-of-balanced-statement))
 
   (goto-char 31)
   (should (looking-at-p "  do { 4; } while (0);\n} else {\n  5;\n}"))
 
-  (caredit--end-of-balanced-statement)
+  (caredit-end-of-balanced-statement)
   (should (looking-at-p "\n} else {\n  5;\n}"))
 
-  (should-error (caredit--end-of-balanced-statement))
+  (should-error (caredit-end-of-balanced-statement))
 
   (goto-char 37)
-  (caredit--end-of-balanced-statement)
+  (caredit-end-of-balanced-statement)
   (should (looking-at-p " } while (0);\n")))
 
 (deftest caredit-beginning-of-balanced-statement--if-1

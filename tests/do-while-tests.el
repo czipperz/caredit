@@ -74,45 +74,45 @@
   (caredit-beginning-of-balanced-statement)
   (should (looking-at-p "do a; while (0);")))
 
-(deftest caredit--end-of-balanced-statement--do-while-1
+(deftest caredit-end-of-balanced-statement--do-while-1
     "z; do { a; b; c; } while (0); d; e;\n"
-  (caredit--end-of-balanced-statement)
+  (caredit-end-of-balanced-statement)
   (should (looking-at-p " do { a; b; c; } while (0); d; e;$"))
 
-  (caredit--end-of-balanced-statement)
+  (caredit-end-of-balanced-statement)
   (should (looking-at-p " d; e;$"))
 
-  (caredit--end-of-balanced-statement)
+  (caredit-end-of-balanced-statement)
   (should (looking-at-p " e;$"))
 
-  (caredit--end-of-balanced-statement)
+  (caredit-end-of-balanced-statement)
   (should (eolp))
 
-  (should-error (caredit--end-of-balanced-statement)))
+  (should-error (caredit-end-of-balanced-statement)))
 
-(deftest caredit--end-of-balanced-statement--do-while-2
+(deftest caredit-end-of-balanced-statement--do-while-2
     "z; do a; while (0); d; e;\n"
-  (caredit--end-of-balanced-statement)
+  (caredit-end-of-balanced-statement)
   (should (looking-at-p " do a; while (0); d; e;$"))
 
-  (caredit--end-of-balanced-statement)
+  (caredit-end-of-balanced-statement)
   (should (looking-at-p " d; e;$"))
 
-  (caredit--end-of-balanced-statement)
+  (caredit-end-of-balanced-statement)
   (should (looking-at-p " e;$"))
 
-  (caredit--end-of-balanced-statement)
+  (caredit-end-of-balanced-statement)
   (should (eolp))
 
-  (should-error (caredit--end-of-balanced-statement))
+  (should-error (caredit-end-of-balanced-statement))
 
   (goto-char 8)
   (should (looking-at-p "; while (0); d; e;$"))
 
-  (caredit--end-of-balanced-statement)
+  (caredit-end-of-balanced-statement)
   (should (looking-at-p " while (0); d; e;$"))
 
-  (caredit--end-of-balanced-statement)
+  (caredit-end-of-balanced-statement)
   (should (looking-at-p " d; e;$")))
 
 (provide 'do-while-tests)

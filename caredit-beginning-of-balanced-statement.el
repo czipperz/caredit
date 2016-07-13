@@ -21,6 +21,7 @@
 
 ;;; Commentary:
 ;;; Code:
+(require 'caredit-core)
 
 (defmacro caredit--increment-var (var &optional num)
   "Increment VAR by NUM, or 1."
