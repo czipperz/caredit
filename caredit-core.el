@@ -60,14 +60,6 @@
     (backward-char))
   (point))
 
-(defun caredit--get-region (mark point)
-  "Get region MARK POINT."
-  (interactive (list (mark) (point)))
-  (save-excursion (let ((reg (get-register ?r)))
-                    (copy-to-register ?r mark point)
-                    (prog1 (get-register ?r)
-                      (set-register ?r reg)))))
-
 
 ;;; Predicates:
 (defun caredit--whitespace-p (ch)
@@ -302,7 +294,7 @@ If in a character literal, do nothing.  This prevents changing what was
         (caredit-end-of-balanced-statement)
         ;; } a;|
         (setq e (point)))
-      (setq reg (caredit--get-region b e))
+      (setq reg (buffer-substring-no-properties b e))
       (delete-region b e)
       ;; }|
       (backward-char)
@@ -324,7 +316,7 @@ If in a character literal, do nothing.  This prevents changing what was
           ;; )|
           (end-paren (point)))
       (caredit--forward-over-whitespace)
-      (let ((reg (caredit--get-region start-paren end-paren)))
+      (let ((reg (buffer-substring-no-properties start-paren end-paren)))
         (when (= ?, (char-after))
           ;; examples of where this branch is taken:
           ;; g(f(x, |y), z)  =>  g(f(x, |y, z))
